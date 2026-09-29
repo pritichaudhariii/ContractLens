@@ -4,16 +4,25 @@ Question answering over contracts and regulatory filings, where every sentence o
 
 Built with Python, LangGraph, FastAPI, PostgreSQL + pgvector, Docker and AWS ECS.
 
-![ContractLens](docs/screenshot.png)
+![ContractLens: a streamed answer with the workflow trace, one citation flagged as unsupported, and the sources behind it](docs/screenshot.png)
+
+<details>
+<summary>Click a citation to open the document at the exact sentence · the Evals tab shows the latest release-gate run</summary>
+
+![Document viewer with the supporting sentence highlighted](docs/viewer.png)
+
+![Evaluation dashboard](docs/evals.png)
+
+</details>
 
 ## What's in it
 
-- **LangGraph workflow**: `analyze_query → retrieve → process_context → generate → ground_check`, with a revision loop when a citation fails verification and an abstain path when nothing relevant is found.
+- **LangGraph workflow**: `analyze_query → retrieve → process_context → generate → ground_check`, with a revision loop when a citation fails verification and an abstain path when nothing relevant is found. The API streams each node as it finishes, and the UI shows the run live.
 - **Hybrid retrieval on pgvector**: vector search (HNSW) plus full-text search (GIN), fused with reciprocal rank fusion. Questions that name a document ("the NDA", "the 10-K") are scoped to it before searching.
-- **Section-aware ingestion**: PDFs, Markdown and text are chunked at clause boundaries so each citation carries a document, section and page.
+- **Section-aware ingestion**: PDFs, Markdown and text are chunked at clause boundaries so each citation carries a document, section, page and the character span of its supporting sentence. Click a citation and the document opens there.
 - **Eval harness with a release gate**: 150 questions across 10 documents, scored on faithfulness, relevance, fact correctness, retrieval hit rate and citation precision against thresholds in `evals/thresholds.yaml`. Exit code 1 fails the build.
 - **Runs without keys**: deterministic embeddings and an extractive stand-in model let the whole stack, harness included, run in CI. Add an LLM API key for real answers and an LLM judge.
-- **Deployable**: Dockerfile, Compose stack with pgvector, Terraform for ECS Fargate + RDS + ALB, and GitHub Actions for CI and gated deploys.
+- **Deployable**: Dockerfile, Compose stack with pgvector, Terraform for ECS Fargate + RDS + ALB, and GitHub Actions for CI and gated deploys. Structured request logs with request ids.
 
 ## How it works
 
@@ -62,7 +71,7 @@ Then try:
 ```bash
 contractlens ask "How long does the NDA's confidentiality obligation survive?"
 contractlens eval                  # the release gate
-pytest                             # 19 tests, including a real pgvector suite
+pytest                             # 21 tests, including a real pgvector suite
 ```
 
 For real answers, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. Without Docker, the API falls back to an in-memory store, and `contractlens eval --embedded-postgres` starts a throwaway pgvector on its own.
@@ -72,9 +81,11 @@ For real answers, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. Wit
 | | |
 | --- | --- |
 | `POST /ask` | question → answer, citations, grounding result, timing trace |
+| `POST /ask/stream` | the same, as server-sent events: one per workflow node, then the answer |
 | `POST /documents` | upload a PDF, `.md` or `.txt` |
-| `GET /documents` · `DELETE /documents/{id}` | list and remove indexed documents |
-| `GET /health` · `GET /graph` | status, and the workflow as Mermaid |
+| `GET /documents` · `GET /documents/{id}` · `DELETE /documents/{id}` | list, read (with passages) and remove indexed documents |
+| `GET /evals/latest` · `GET /evals/history` | the latest eval report and the run history |
+| `GET /health` · `GET /stats` · `GET /graph` | status, index statistics, and the workflow as Mermaid |
 
 Set `API_KEY` to require an `X-API-Key` header.
 
@@ -87,6 +98,7 @@ Set `API_KEY` to require an `X-API-Key` header.
 ```
 src/contractlens/     graph, retrieval, scoping, grounding, ingest/, store/, evals/, api/, ui/
 data/corpus/          10 sample documents          data/gold/   150-question gold set
+docs/                 screenshots
 evals/thresholds.yaml release gate                 infra/       AWS ECS Terraform
 ```
 

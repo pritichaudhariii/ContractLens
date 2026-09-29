@@ -12,7 +12,8 @@ graph wiring lives in `build_graph`.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -217,6 +218,42 @@ def _build_prompt(question: str, context: list[RetrievedChunk]) -> str:
     return "CONTEXT:\n" + "\n\n".join(blocks) + f"\n\nQUESTION: {question}\n"
 
 
+@dataclass
+class GraphEvent:
+    """One step of a streamed run: which node finished, when, and a small human-readable detail."""
+
+    type: Literal["node", "answer"]
+    node: str
+    elapsed_ms: float
+    detail: dict[str, float | int | str | bool] = field(default_factory=dict)
+    answer: Answer | None = None
+
+
+def _node_detail(node: str, state: dict) -> dict[str, float | int | str | bool]:
+    trace = state.get("trace", {}) or {}
+    if node == "analyze_query":
+        return {"scoped_document": trace.get("scoped_document", "") or ""}
+    if node == "retrieve":
+        return {"candidates": trace.get("candidates", 0), "ms": trace.get("retrieve_ms", 0)}
+    if node == "process_context":
+        return {
+            "passages": trace.get("context_chunks", 0),
+            "chars": trace.get("context_chars", 0),
+            "rerank": trace.get("rerank", ""),
+        }
+    if node == "generate":
+        return {"attempt": state.get("attempts", 0), "model": trace.get("llm", ""), "ms": trace.get("generate_ms", 0)}
+    if node == "ground_check":
+        return {
+            "citations": trace.get("citations", 0),
+            "unsupported": trace.get("unsupported", 0),
+            "grounded": bool(state.get("grounded", False)),
+        }
+    if node == "no_context":
+        return {"abstained": True}
+    return {}
+
+
 class ContractLens:
     """Convenience wrapper that runs the compiled graph and shapes the result as an `Answer`."""
 
@@ -228,6 +265,33 @@ class ContractLens:
         started = time.perf_counter()
         state: GraphState = {"question": question, "top_k": top_k or self.deps.top_k, "doc_types": doc_types}
         final = self.graph.invoke(state)
+        return self._to_answer(question, final, started)
+
+    def ask_stream(
+        self, question: str, *, top_k: int | None = None, doc_types: list[str] | None = None
+    ) -> Iterator[GraphEvent]:
+        """Runs the graph node by node, yielding a `GraphEvent` after each node completes and a
+        final `answer` event. This is what the SSE endpoint and the UI's live trace consume."""
+        started = time.perf_counter()
+        state: GraphState = {"question": question, "top_k": top_k or self.deps.top_k, "doc_types": doc_types}
+        merged: dict = dict(state)
+        for update in self.graph.stream(state, stream_mode="updates"):
+            for node, delta in update.items():
+                merged.update(delta or {})
+                yield GraphEvent(
+                    type="node",
+                    node=node,
+                    elapsed_ms=round((time.perf_counter() - started) * 1000, 1),
+                    detail=_node_detail(node, merged),
+                )
+        yield GraphEvent(
+            type="answer",
+            node="",
+            elapsed_ms=round((time.perf_counter() - started) * 1000, 1),
+            answer=self._to_answer(question, merged, started),
+        )
+
+    def _to_answer(self, question: str, final: dict, started: float) -> Answer:
         trace = dict(final.get("trace", {}))
         trace["total_ms"] = round((time.perf_counter() - started) * 1000, 1)
         return Answer(

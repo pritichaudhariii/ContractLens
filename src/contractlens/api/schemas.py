@@ -51,6 +51,20 @@ class DocumentOut(BaseModel):
     metadata: dict[str, str]
 
 
+class ChunkOut(BaseModel):
+    id: str
+    ordinal: int
+    section: str
+    page: int | None
+    text: str
+    char_start: int
+    char_end: int
+
+
+class DocumentDetail(DocumentOut):
+    chunks: list[ChunkOut]
+
+
 class IngestTextRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     text: str = Field(min_length=20)
@@ -70,3 +84,28 @@ class HealthResponse(BaseModel):
     documents: int
     chunks: int
     components: dict[str, str | int]
+
+
+class StatsResponse(BaseModel):
+    documents: int
+    chunks: int
+    by_type: dict[str, int]
+    sections: int
+    avg_chunk_chars: int
+    components: dict[str, str | int]
+
+
+class EvalSummary(BaseModel):
+    run_id: str
+    started_at: str
+    duration_s: float
+    profile: str
+    judge: str
+    questions: int
+    passed: bool
+    aggregates: dict[str, float]
+    thresholds: dict[str, float]
+    failures: list[str]
+    by_category: dict[str, dict[str, float]]
+    by_document: dict[str, dict[str, float]]
+    misses: list[dict]

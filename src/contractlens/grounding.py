@@ -52,11 +52,29 @@ def support_score(claim: str, chunk_text: str) -> float:
 
 
 def best_quote(claim: str, chunk_text: str, max_len: int = 240) -> str:
-    sentences = [s.strip() for s in SENTENCE_SPLIT.split(chunk_text) if s.strip()]
-    if not sentences:
-        return chunk_text[:max_len]
-    best = max(sentences, key=lambda s: support_score(claim, s))
-    return best if len(best) <= max_len else best[: max_len - 1].rstrip() + "…"
+    quote, _span = best_sentence(claim, chunk_text)
+    return quote if len(quote) <= max_len else quote[: max_len - 1].rstrip() + "…"
+
+
+def best_sentence(claim: str, chunk_text: str) -> tuple[str, tuple[int, int]]:
+    """The sentence of the chunk that best supports the claim, with its character span."""
+    best: tuple[float, str, tuple[int, int]] | None = None
+    pos = 0
+    for raw in SENTENCE_SPLIT.split(chunk_text):
+        start = chunk_text.find(raw, pos)
+        if start < 0:
+            start = pos
+        end = start + len(raw)
+        pos = end
+        sentence = raw.strip()
+        if not sentence:
+            continue
+        score = support_score(claim, sentence)
+        if best is None or score > best[0]:
+            best = (score, sentence, (start + (len(raw) - len(raw.lstrip())), end - (len(raw) - len(raw.rstrip()))))
+    if best is None:
+        return chunk_text[:240], (0, min(240, len(chunk_text)))
+    return best[1], best[2]
 
 
 def check_grounding(answer: str, context: list[RetrievedChunk], *, threshold: float = 0.3) -> GroundingResult:
@@ -75,7 +93,8 @@ def check_grounding(answer: str, context: list[RetrievedChunk], *, threshold: fl
             if not supported:
                 unsupported.add(marker)
             existing = citations.get(marker)
-            if existing is None or (supported and not existing.supported):
+            if existing is None or score > existing.support_score:
+                quote, span = best_sentence(claim, chunk.text)
                 citations[marker] = Citation(
                     marker=marker,
                     chunk_id=chunk.id,
@@ -83,8 +102,10 @@ def check_grounding(answer: str, context: list[RetrievedChunk], *, threshold: fl
                     document_title=chunk.document_title,
                     section=chunk.section,
                     page=chunk.page,
-                    quote=best_quote(claim, chunk.text),
+                    quote=quote if len(quote) <= 240 else quote[:239].rstrip() + "…",
                     supported=supported,
+                    support_score=round(score, 3),
+                    highlight=span,
                 )
 
     # A marker is only unsupported if none of its claims were supported.

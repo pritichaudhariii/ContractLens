@@ -4,100 +4,324 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ContractLens</title>
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #f5f6f4; --panel: #ffffff; --ink: #1c2229; --muted: #5f6b76; --faint: #98a3ad;
-    --rule: #d9dfe4; --accent: #2b5d9b; --accent-soft: #e6eef8; --ok: #1f7a4d; --warn: #b26a0b; --bad: #b2372f;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --bg: #f3f2ee; --panel: #ffffff; --panel-2: #f8f7f4; --ink: #1d1f22; --muted: #5d6470; --faint: #939aa5;
+    --rule: #e0ddd6; --rule-strong: #c6c2b8; --accent: #1f5f8b; --accent-soft: #e3eef6; --accent-ink: #164766;
+    --ok: #1d7a53; --ok-soft: #e0f2e9; --warn: #a8640a; --warn-soft: #f8ecd6; --bad: #b3372f; --bad-soft: #f8e3e0;
+    --mark: #fff1b8; --mark-ink: #4a3a00;
+    --shadow: 0 1px 2px rgba(29,31,34,.05), 0 10px 30px -18px rgba(29,31,34,.25);
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans: Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #131519; --panel: #1b1e24; --panel-2: #22262d; --ink: #e7e6e1; --muted: #a2a8b3; --faint: #6d747f;
+    --rule: #2b3037; --rule-strong: #3d434c; --accent: #7cb2dc; --accent-soft: #1c2f3f; --accent-ink: #a9cfeb;
+    --ok: #55c48e; --ok-soft: #173327; --warn: #e0a24a; --warn-soft: #3a2b12; --bad: #ef7c72; --bad-soft: #3d1f1c;
+    --mark: #4a3d12; --mark-ink: #ffe9a8;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 14px 36px -18px rgba(0,0,0,.6);
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  header { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 28px 10px; }
-  header h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
-  header .meta { font-size: 13px; color: var(--muted); }
-  header code { font-family: var(--mono); font-size: 12px; }
-  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 1.4fr); gap: 20px; padding: 0 28px 28px; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-  .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; }
-  form { display: flex; gap: 8px; padding: 14px; border-bottom: 1px solid var(--rule); }
-  input[type=text] { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; }
-  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
-  button { font: inherit; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
-  button.secondary { background: #fff; color: var(--accent); }
-  button:disabled { opacity: .5; cursor: default; }
-  .starters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
-  .starters button { font-size: 13px; padding: 5px 10px; background: var(--accent-soft); color: var(--accent); border-color: transparent; }
-  #answer { padding: 18px 20px; min-height: 160px; }
-  #answer .q { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-  #answer .text { font-size: 16px; max-width: 70ch; }
-  #answer sup { color: var(--accent); font-weight: 600; cursor: pointer; }
-  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); margin-right: 6px; }
-  .badge.ok { color: var(--ok); border-color: #b9dcc9; background: #eaf6ef; }
-  .badge.warn { color: var(--warn); border-color: #ecd3ab; background: #fbf3e4; }
-  .trace { margin-top: 10px; font-size: 12px; color: var(--faint); font-family: var(--mono); }
-  .citations { border-top: 1px solid var(--rule); padding: 14px 20px; }
-  .citations h2, .docs h2 { font-size: 13px; text-transform: none; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
-  .cite { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--rule); font-size: 14px; }
-  .cite:first-of-type { border-top: 0; }
-  .cite .n { font-family: var(--mono); color: var(--accent); font-weight: 600; }
-  .cite .where { color: var(--muted); font-size: 13px; }
-  .cite blockquote { margin: 4px 0 0; padding-left: 10px; border-left: 3px solid var(--rule); color: var(--ink); }
-  .cite.unsupported .n { color: var(--bad); }
-  .docs { padding: 14px; }
-  .docs ul { list-style: none; margin: 0; padding: 0; }
-  .docs li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--rule); font-size: 14px; }
-  .docs li:first-child { border-top: 0; }
-  .docs .type { font-size: 12px; color: var(--muted); }
-  .docs .count { font-family: var(--mono); font-size: 12px; color: var(--faint); white-space: nowrap; }
-  .upload { border-top: 1px solid var(--rule); padding: 12px 14px; font-size: 13px; color: var(--muted); }
-  .upload form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .upload label { flex-basis: 100%; }
-  .upload input[type=file] { font-size: 13px; max-width: 100%; }
-  .upload select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; }
-  .upload button { padding: 6px 12px; font-size: 13px; }
-  .empty { color: var(--faint); }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; transition: background-color .15s, color .15s; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  textarea:focus-visible, input:focus-visible { outline: none; }
+
+  /* ---- shell ---- */
+  .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h1 { margin: 0; font: 600 17px/1.2 var(--sans); letter-spacing: -0.01em; }
+  .brand small { display: block; color: var(--muted); font-size: 12.5px; }
+  .brand svg { flex: none; }
+  nav { display: flex; gap: 2px; padding: 3px; background: var(--panel-2); border: 1px solid var(--rule); border-radius: 8px; }
+  nav button { padding: 5px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13.5px; font-weight: 500; }
+  nav button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .tools { display: flex; align-items: center; gap: 8px; }
+  .status { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); font-size: 12.5px; color: var(--muted); }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .status.err .dot { background: var(--bad); }
+  .status .mono { color: var(--ink); }
+  .iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--muted); }
+  .iconbtn:hover { color: var(--ink); }
+  main { min-height: 0; overflow: hidden; }
+  .view { display: none; height: 100%; }
+  .view.active { display: grid; }
+
+  /* ---- ask view ---- */
+  #view-ask { grid-template-columns: minmax(0, 1fr) 380px; gap: 0; }
+  @media (max-width: 1000px) {
+    #view-ask { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    .side { border-left: 0 !important; border-top: 1px solid var(--rule); max-height: 34vh; }
+    .side.collapsed { max-height: none; }
+    .side.collapsed .side-body { display: none; }
+  }
+  @media (max-width: 640px) {
+    header { padding: 10px 14px; }
+    .brand small { display: none; }
+    .status #status-text { display: none; }
+    .status { padding: 0 8px; }
+    nav button { padding: 5px 10px; }
+    .composer { padding: 12px 14px 8px; }
+    .askbox textarea { font-size: 15px; }
+    .composer .starters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; }
+    .composer .starters button { white-space: nowrap; flex: none; }
+    .answer-wrap { padding: 4px 14px 32px; }
+    .answer { font-size: 17px; }
+    .trace { overflow-x: auto; overflow-wrap: normal; }
+    .trace ol { display: flex; gap: 6px; width: max-content; }
+    .trace .step { flex: 0 0 auto; width: 150px; min-width: 150px; }
+  }
+  .center { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; min-width: 0; }
+  .composer { padding: 18px 28px 12px; min-width: 0; }
+  .askbox { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 14px; border: 1px solid var(--rule-strong); border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); }
+  .askbox:focus-within { border-color: var(--accent); }
+  .askbox textarea { flex: 1; min-height: 40px; max-height: 140px; padding: 8px 0; border: 0; background: transparent; resize: none; font-size: 16px; line-height: 1.45; }
+  .askbox textarea::placeholder { color: var(--faint); }
+  .askbox button { height: 36px; padding: 0 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 500; }
+  :root[data-theme="dark"] .askbox button { color: #0c1a26; }
+  .askbox button:disabled { opacity: .4; cursor: default; }
+  .starters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-width: 0; }
+  .starters button { padding: 5px 11px; border: 1px solid var(--rule); border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 13px; }
+  .starters button:hover { border-color: var(--accent); color: var(--accent); }
+  .starters button:disabled { opacity: .5; }
+  .scroll { overflow-y: auto; min-height: 0; min-width: 0; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+  .answer-wrap { padding: 6px 28px 40px; max-width: 860px; min-width: 0; overflow-wrap: anywhere; }
+
+  .empty { color: var(--muted); max-width: 60ch; padding-top: 24px; }
+  .empty h2 { margin: 0 0 8px; font: 600 22px/1.25 var(--sans); letter-spacing: -0.015em; color: var(--ink); }
+  .empty p { margin: 0 0 14px; }
+
+  .qline { color: var(--muted); font-size: 13.5px; margin: 8px 0 14px; }
+  .answer { font: 400 19px/1.62 var(--serif); max-width: 66ch; }
+  .answer p { margin: 0 0 .7em; }
+  .answer .cite { display: inline-block; vertical-align: baseline; font: 600 11.5px/1 var(--mono); color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 3px 5px 2px; margin: 0 1px 0 4px; cursor: pointer; text-decoration: none; position: relative; top: -1px; }
+  .answer .cite.bad { color: var(--bad); background: var(--bad-soft); }
+  .answer .cite.on, .answer .cite:hover { outline: 2px solid var(--accent); }
+  .answer.abstain { color: var(--muted); }
+  .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--rule); font-size: 12.5px; color: var(--muted); background: var(--panel); }
+  .chip.ok { color: var(--ok); border-color: transparent; background: var(--ok-soft); }
+  .chip.warn { color: var(--warn); border-color: transparent; background: var(--warn-soft); }
+  .chip.bad { color: var(--bad); border-color: transparent; background: var(--bad-soft); }
+  .chip b { font-weight: 600; }
+
+  /* trace rail */
+  .trace { margin: 16px 0 6px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+  .trace-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+  .trace ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .step { padding: 8px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid transparent; min-height: 58px; }
+  .step .n { font: 500 12px/1 var(--mono); color: var(--faint); display: flex; align-items: center; gap: 6px; }
+  .step .n::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--rule-strong); }
+  .step.run .n::before { background: var(--warn); animation: pulse 1s infinite; }
+  .step.done .n::before { background: var(--ok); }
+  .step.skip { opacity: .45; }
+  .step .d { font-size: 12.5px; color: var(--muted); margin-top: 5px; line-height: 1.35; }
+  .step .d b { color: var(--ink); font-weight: 500; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  /* sources */
+  .sources { margin-top: 18px; }
+  .sources h3, .side h3 { margin: 0 0 8px; font: 600 12.5px/1 var(--sans); color: var(--muted); letter-spacing: .01em; }
+  .src { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 12px 0; border-top: 1px solid var(--rule); }
+  .src:first-of-type { border-top: 0; }
+  .src.on { background: linear-gradient(90deg, var(--accent-soft), transparent 60%); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 8px; }
+  .src .n { font: 600 12.5px/1.2 var(--mono); color: var(--accent); padding-top: 3px; }
+  .src.bad .n { color: var(--bad); }
+  .src .t { font-weight: 500; font-size: 14px; }
+  .src .w { color: var(--muted); font-size: 12.5px; margin-top: 1px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  .src .w .sup { color: var(--ok); }
+  .src.bad .w .sup { color: var(--bad); }
+  .src blockquote { margin: 7px 0 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--rule-strong); font: 400 14.5px/1.5 var(--serif); color: var(--ink); }
+  .src .open { margin-top: 6px; font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* side panel */
+  .side { border-left: 1px solid var(--rule); background: var(--panel); display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+  .side-tabs { display: flex; gap: 14px; padding: 12px 18px 0; border-bottom: 1px solid var(--rule); }
+  .side-tabs button { background: none; border: 0; padding: 4px 0 10px; color: var(--muted); font-size: 13.5px; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .side-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .side-collapse { display: none !important; margin-left: auto; }
+  @media (max-width: 1000px) { .side-collapse { display: inline-block !important; } }
+  .side-body { padding: 14px 18px 20px; }
+  .doclist { list-style: none; margin: 0; padding: 0; }
+  .doclist li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 9px 0; border-top: 1px solid var(--rule); }
+  .doclist li:first-child { border-top: 0; }
+  .doclist .name { font-size: 14px; }
+  .doclist .name button { background: none; border: 0; padding: 0; text-align: left; color: var(--ink); }
+  .doclist .name button:hover { color: var(--accent); }
+  .doclist .type { display: inline-block; margin-top: 3px; font-size: 11.5px; color: var(--muted); padding: 1px 7px; border-radius: 999px; background: var(--panel-2); }
+  .doclist .count { color: var(--faint); font-size: 12px; white-space: nowrap; padding-top: 3px; }
+  .doclist .del { background: none; border: 0; color: var(--faint); font-size: 12px; padding: 0; }
+  .doclist .del:hover { color: var(--bad); }
+  .upload { margin-top: 16px; padding: 12px; border: 1px dashed var(--rule-strong); border-radius: 10px; color: var(--muted); font-size: 13px; }
+  .upload.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .upload .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  .upload input[type=file] { font-size: 12.5px; max-width: 100%; }
+  .upload select { padding: 5px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); font-size: 13px; }
+  .upload button { padding: 5px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--panel); color: var(--accent); font-size: 13px; }
+  .upload .msg { margin-top: 6px; min-height: 1.2em; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel-2); }
+  .stat .v { font: 600 20px/1.1 var(--sans); }
+  .stat .l { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .kv { margin: 12px 0 0; font-size: 13px; }
+  .kv div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid var(--rule); }
+  .kv div:first-child { border-top: 0; }
+  .kv span:last-child { color: var(--muted); font-family: var(--mono); font-size: 12px; text-align: right; }
+
+  /* ---- viewer ---- */
+  .viewer { position: fixed; inset: 0; z-index: 30; background: rgba(15,17,20,.45); display: none; }
+  .viewer.open { display: block; }
+  .viewer .pane { position: absolute; top: 0; right: 0; bottom: 0; width: min(760px, 100%); background: var(--panel); border-left: 1px solid var(--rule); display: grid; grid-template-rows: auto minmax(0, 1fr); box-shadow: var(--shadow); }
+  .viewer .ph { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--rule); }
+  .viewer .ph h2 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .viewer .ph small { color: var(--muted); display: block; font-size: 12.5px; }
+  .viewer .doc { position: relative; min-height: 0; height: 100%; overflow-y: auto; padding: 20px 28px 60px; font: 400 15.5px/1.6 var(--serif); }
+  .viewer .sec { margin: 22px 0 6px; font: 600 13px/1.2 var(--sans); color: var(--muted); }
+  .viewer .chunk { margin: 0 0 12px; padding: 4px 8px; border-radius: 6px; white-space: pre-wrap; }
+  .viewer .chunk.hit { background: var(--accent-soft); }
+  .viewer mark { background: var(--mark); color: var(--mark-ink); padding: 1px 2px; border-radius: 3px; }
+
+  /* ---- evals view ---- */
+  #view-evals { grid-template-rows: 1fr; }
+  .evals { padding: 22px 28px 40px; max-width: 1080px; }
+  .evals h2 { margin: 0; font: 600 20px/1.3 var(--sans); letter-spacing: -0.01em; }
+  .evals .sub { color: var(--muted); font-size: 13.5px; margin: 4px 0 18px; }
+  .gate { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+  .gate.pass { background: var(--ok-soft); color: var(--ok); } .gate.fail { background: var(--bad-soft); color: var(--bad); }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .metric { padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+  .metric .l { color: var(--muted); font-size: 12.5px; }
+  .metric .v { font: 600 26px/1.1 var(--sans); margin-top: 4px; display: flex; align-items: baseline; gap: 8px; }
+  .metric .g { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .metric .bar { height: 5px; border-radius: 3px; background: var(--panel-2); margin-top: 10px; position: relative; overflow: visible; }
+  .metric .bar i { display: block; height: 100%; border-radius: 3px; background: var(--ok); }
+  .metric.fail .bar i { background: var(--bad); }
+  .metric .bar b { position: absolute; top: -3px; width: 2px; height: 11px; background: var(--ink); }
+  .evals table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  .evals th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12.5px; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule-strong); }
+  .evals td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .evals td.num, .evals th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .evals .sect { margin-top: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 800px) { .evals .sect { grid-template-columns: 1fr; } }
+  .evals h3 { margin: 0 0 6px; font: 600 14px/1.3 var(--sans); }
+  .miss { padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+  .miss .q { font-weight: 500; }
+  .miss .m { color: var(--muted); font-family: var(--mono); font-size: 11.5px; margin: 3px 0; }
+  .miss .a { color: var(--muted); font-family: var(--serif); }
+  .evals .none { padding: 30px; border: 1px dashed var(--rule-strong); border-radius: 10px; color: var(--muted); }
+  .evals code { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 8px; }
+  .spark i { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; opacity: .8; min-width: 6px; }
+  .spark i.fail { background: var(--bad); }
   .error { color: var(--bad); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); padding: 8px 14px; background: var(--ink); color: var(--bg); border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 40; }
+  .toast.on { opacity: 1; }
+  kbd { font: 500 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--rule-strong); border-bottom-width: 2px; border-radius: 4px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>ContractLens</h1>
-  <div class="meta" id="meta">connecting…</div>
-</header>
-<main>
-  <section class="panel">
-    <form id="ask">
-      <input id="q" type="text" placeholder="Ask about the indexed contracts and filings" autocomplete="off" />
-      <button id="send" type="submit">Ask</button>
-    </form>
-    <div class="starters" id="starters"></div>
-    <div id="answer"><div class="empty">Answers cite the passages they come from. Click a citation number to jump to the quote.</div></div>
-    <div class="citations" id="citations" hidden></div>
-  </section>
-  <aside class="panel">
-    <div class="docs">
-      <h2>Indexed documents</h2>
-      <ul id="docs"><li class="empty">Loading…</li></ul>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden><rect x=".5" y=".5" width="29" height="29" rx="7" fill="var(--accent-soft)" stroke="var(--accent)" stroke-opacity=".4"/><path d="M8 9h14M8 13.5h14M8 18h9" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/><circle cx="21" cy="19.5" r="3.2" fill="none" stroke="var(--accent)" stroke-width="1.8"/><path d="M23.3 21.8 26 24.5" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div><h1>ContractLens</h1><small>Every answer cites its clause</small></div>
     </div>
-    <div class="upload">
-      <form id="upload">
-        <label>Add a document (PDF, .md, .txt)<br />
-          <input type="file" name="file" accept=".pdf,.md,.txt" required />
-        </label>
-        <select name="doc_type">
-          <option value="contract">contract</option>
-          <option value="regulatory_filing">regulatory filing</option>
-          <option value="policy">policy</option>
-          <option value="other">other</option>
-        </select>
-        <button class="secondary" type="submit">Upload</button>
-        <span id="upload-status"></span>
-      </form>
+    <nav role="tablist" aria-label="Views">
+      <button role="tab" aria-selected="true" data-view="ask">Ask</button>
+      <button role="tab" aria-selected="false" data-view="evals">Evals</button>
+    </nav>
+    <div class="tools">
+      <span class="status" id="status"><span class="dot"></span><span id="status-text">connecting…</span></span>
+      <button class="iconbtn" id="theme" aria-label="Toggle theme" title="Toggle theme"></button>
     </div>
-  </aside>
-</main>
+  </header>
+
+  <main>
+    <!-- ================= ASK ================= -->
+    <section class="view active" id="view-ask" role="tabpanel">
+      <div class="center">
+        <div class="composer">
+          <form id="ask" class="askbox">
+            <textarea id="q" rows="1" placeholder="Ask about the indexed contracts and filings" aria-label="Question"></textarea>
+            <button id="send" type="submit">Ask</button>
+          </form>
+          <div class="starters" id="starters"></div>
+        </div>
+        <div class="scroll">
+          <div class="answer-wrap" id="out">
+            <div class="empty">
+              <h2>Ask a question. Get the clause.</h2>
+              <p>ContractLens retrieves the relevant passages from the indexed documents, drafts an answer where every sentence cites a passage, and checks each citation against the text it points at. Unsupported citations are flagged, not hidden.</p>
+              <p>Try one of the questions above, or press <kbd>/</kbd> to start typing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside class="side">
+        <div class="side-tabs" role="tablist" aria-label="Panel">
+          <button role="tab" aria-selected="true" data-side="docs">Documents</button>
+          <button role="tab" aria-selected="false" data-side="stats">Index</button>
+          <button type="button" id="side-toggle" class="side-collapse" aria-expanded="true" aria-label="Collapse panel">▾</button>
+        </div>
+        <div class="scroll side-body">
+          <div id="side-docs">
+            <ul class="doclist" id="docs"><li class="empty" style="padding-top:0">Loading…</li></ul>
+            <form class="upload" id="upload">
+              <div>Add a document — drop a file here or choose one</div>
+              <div class="row">
+                <input type="file" name="file" accept=".pdf,.md,.txt" required />
+                <select name="doc_type">
+                  <option value="contract">contract</option>
+                  <option value="regulatory_filing">regulatory filing</option>
+                  <option value="policy">policy</option>
+                  <option value="other">other</option>
+                </select>
+                <button type="submit">Index</button>
+              </div>
+              <div class="msg" id="upload-msg"></div>
+            </form>
+          </div>
+          <div id="side-stats" hidden></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ================= EVALS ================= -->
+    <section class="view" id="view-evals" role="tabpanel">
+      <div class="scroll"><div class="evals" id="evals"><div class="none">Loading…</div></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- document viewer drawer -->
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Document">
+  <div class="pane">
+    <div class="ph"><div><h2 id="v-title"></h2><small id="v-sub"></small></div><button class="iconbtn" id="v-close" aria-label="Close">✕</button></div>
+    <div class="scroll doc" id="v-body"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
 <script>
-const $ = (s) => document.querySelector(s);
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtType = (t) => t.replace(/_/g, " ");
+
 const STARTERS = [
   "What is the termination notice period in the master services agreement?",
   "What uptime does the SaaS subscription agreement commit to?",
@@ -105,61 +329,289 @@ const STARTERS = [
   "What is the leverage covenant in the credit agreement?",
   "How long does the NDA's confidentiality obligation survive?",
   "What was the purchase price for Bluewater Robotics?",
+  "How quickly must Helix report a data breach under the DPA?",
 ];
-const headers = () => ({ "Content-Type": "application/json" });
+const NODES = [
+  ["analyze_query", "Analyze", (d) => d.scoped_document ? `scoped to <b>${esc(shortId(d.scoped_document))}</b>` : "searching all documents"],
+  ["retrieve", "Retrieve", (d) => `<b>${d.candidates}</b> candidates · ${d.ms} ms`],
+  ["process_context", "Select", (d) => `<b>${d.passages}</b> passages · ${(d.chars / 1000).toFixed(1)}k chars`],
+  ["generate", "Generate", (d) => `attempt <b>${d.attempt}</b> · ${d.ms} ms`],
+  ["ground_check", "Verify", (d) => d.grounded ? `<b>${d.citations}</b> citations, all supported` : `<b>${d.unsupported}</b> unsupported of ${d.citations}`],
+];
+const shortId = (id) => id.replace(/-northwind.*$|-helix.*$|-acme.*$|-riverbend.*$|-analytics.*$/, "").replace(/-/g, " ");
 
-async function loadMeta() {
+let docsCache = [];
+let lastAnswer = null;
+
+// ---- theme --------------------------------------------------------------------
+const themeBtn = $("#theme");
+const paintTheme = () => { themeBtn.textContent = document.documentElement.dataset.theme === "dark" ? "☀" : "☾"; };
+themeBtn.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("cl-theme", next); } catch {}
+  paintTheme();
+});
+paintTheme();
+
+// ---- views ------------------------------------------------------------------------
+$$("nav [data-view]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.view)));
+function showView(name) {
+  $$("nav [data-view]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === name)));
+  $$(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${name}`));
+  if (name === "evals") loadEvals();
+}
+$$("[data-side]").forEach((b) => b.addEventListener("click", () => {
+  $$("[data-side]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  $("#side-docs").hidden = b.dataset.side !== "docs";
+  $("#side-stats").hidden = b.dataset.side !== "stats";
+  if (b.dataset.side === "stats") loadStats();
+}));
+
+// ---- status / docs / stats -------------------------------------------------------------
+async function loadStatus() {
   try {
-    const r = await fetch("/health"); const h = await r.json();
-    $("#meta").innerHTML = `<code>${h.components.store}</code> · <code>${h.components.embedding_provider}</code> embeddings · <code>${h.components.llm}</code> · ${h.documents} documents, ${h.chunks} passages`;
-  } catch { $("#meta").textContent = "API unreachable"; }
+    const h = await (await fetch("/health")).json();
+    const c = h.components;
+    $("#status").classList.remove("err");
+    $("#status-text").innerHTML = `<span class="mono">${esc(c.store)}</span> · ${esc(c.embedding_provider)} embeddings · <span class="mono">${esc(c.llm)}</span>`;
+    $("#status").title = `${h.documents} documents, ${h.chunks} passages · v${h.version}`;
+  } catch { $("#status").classList.add("err"); $("#status-text").textContent = "API unreachable"; }
 }
 async function loadDocs() {
-  const r = await fetch("/documents"); const docs = await r.json();
+  const r = await fetch("/documents");
+  docsCache = await r.json();
   const ul = $("#docs"); ul.innerHTML = "";
-  if (!docs.length) { ul.innerHTML = '<li class="empty">Nothing indexed yet. Upload a file or run <code>contractlens ingest data/corpus</code>.</li>'; return; }
-  for (const d of docs) {
+  if (!docsCache.length) { ul.innerHTML = '<li class="empty" style="padding-top:0">Nothing indexed yet. Upload a file below, or run <code class="mono">contractlens ingest data/corpus</code>.</li>'; return; }
+  for (const d of docsCache) {
     const li = document.createElement("li");
-    li.innerHTML = `<span><div>${esc(d.title)}</div><div class="type">${d.doc_type.replace("_", " ")}</div></span><span class="count">${d.chunk_count} passages</span>`;
+    li.innerHTML = `<div class="name"><button type="button" data-open="${esc(d.id)}">${esc(d.title)}</button><br><span class="type">${esc(fmtType(d.doc_type))}</span></div>
+      <div style="text-align:right"><div class="count">${d.chunk_count} passages</div><button class="del" type="button" data-del="${esc(d.id)}" title="Remove from index">remove</button></div>`;
     ul.appendChild(li);
   }
+  $$("[data-open]", ul).forEach((b) => b.addEventListener("click", () => openDoc(b.dataset.open)));
+  $$("[data-del]", ul).forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm(`Remove "${b.dataset.del}" from the index?`)) return;
+    await fetch(`/documents/${encodeURIComponent(b.dataset.del)}`, { method: "DELETE" });
+    toast("Removed"); loadDocs(); loadStatus();
+  }));
 }
-function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-function renderAnswer(q, a) {
-  const text = esc(a.answer).replace(/\[(\d{1,2})\]/g, (_, n) => `<sup data-n="${n}">[${n}]</sup>`);
-  const badge = a.grounded ? '<span class="badge ok">grounded</span>' : `<span class="badge warn">unsupported citations: ${a.unsupported_markers.join(", ") || "none"}</span>`;
-  const t = a.trace;
-  $("#answer").innerHTML = `<div class="q">${esc(q)}</div><div class="text">${text}</div><div style="margin-top:12px">${badge}<span class="badge">${a.citations.length} citations</span></div>
-    <div class="trace">retrieve ${t.retrieve_ms} ms · ${t.candidates} candidates → ${t.context_chunks ?? 0} passages · generate ${t.generate_ms ?? 0} ms (${t.llm ?? ""}) · total ${t.total_ms} ms</div>`;
-  const c = $("#citations"); c.hidden = !a.citations.length;
-  c.innerHTML = "<h2>Sources</h2>" + a.citations.map((x) => `
-    <div class="cite ${x.supported ? "" : "unsupported"}" id="cite-${x.marker}">
-      <div class="n">[${x.marker}]</div>
-      <div><div>${esc(x.document_title)}</div><div class="where">${esc(x.section || "")}${x.page ? ` · p. ${x.page}` : ""}${x.supported ? "" : " · not supported by this passage"}</div><blockquote>${esc(x.quote)}</blockquote></div>
-    </div>`).join("");
-  document.querySelectorAll("#answer sup").forEach((s) => s.addEventListener("click", () => document.getElementById("cite-" + s.dataset.n)?.scrollIntoView({ behavior: "smooth", block: "center" })));
+async function loadStats() {
+  const s = await (await fetch("/stats")).json();
+  const c = s.components;
+  $("#side-stats").innerHTML = `
+    <div class="stat-grid">
+      <div class="stat"><div class="v tnum">${s.documents}</div><div class="l">documents</div></div>
+      <div class="stat"><div class="v tnum">${s.chunks}</div><div class="l">passages</div></div>
+      <div class="stat"><div class="v tnum">${s.sections}</div><div class="l">sections</div></div>
+      <div class="stat"><div class="v tnum">${s.avg_chunk_chars}</div><div class="l">avg chars / passage</div></div>
+    </div>
+    <div class="kv">
+      ${Object.entries(s.by_type).map(([k, v]) => `<div><span>${esc(fmtType(k))}s</span><span>${v}</span></div>`).join("")}
+      <div><span>store</span><span>${esc(c.store)}</span></div>
+      <div><span>embeddings</span><span>${esc(c.embedding_provider)} · ${c.embedding_dimension}d</span></div>
+      <div><span>model</span><span>${esc(c.llm)}</span></div>
+      <div><span>reranker</span><span>${esc(c.reranker)}</span></div>
+    </div>`;
 }
-async function ask(q) {
-  $("#q").value = q; $("#send").disabled = true;
-  $("#answer").innerHTML = `<div class="q">${esc(q)}</div><div class="empty">Retrieving and drafting…</div>`; $("#citations").hidden = true;
-  try {
-    const r = await fetch("/ask", { method: "POST", headers: headers(), body: JSON.stringify({ question: q }) });
-    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-    renderAnswer(q, await r.json());
-  } catch (e) { $("#answer").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
-  finally { $("#send").disabled = false; }
-}
-$("#ask").addEventListener("submit", (e) => { e.preventDefault(); const q = $("#q").value.trim(); if (q) ask(q); });
+
+// ---- ask (streamed) --------------------------------------------------------------------
+const q = $("#q"), send = $("#send"), out = $("#out");
+q.addEventListener("input", () => { q.style.height = "0px"; q.style.height = Math.min(q.scrollHeight, 140) + "px"; });
+q.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask").requestSubmit(); } });
+$("#ask").addEventListener("submit", (e) => { e.preventDefault(); const t = q.value.trim(); if (t) ask(t); });
 for (const s of STARTERS) { const b = document.createElement("button"); b.type = "button"; b.textContent = s; b.addEventListener("click", () => ask(s)); $("#starters").appendChild(b); }
-$("#upload").addEventListener("submit", async (e) => {
-  e.preventDefault(); const fd = new FormData(e.target); $("#upload-status").textContent = "uploading…";
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== q && !$("#viewer").classList.contains("open")) { e.preventDefault(); q.focus(); }
+  if (e.key === "Escape") closeViewer();
+});
+
+function traceHtml() {
+  return `<div class="trace"><div class="trace-head"><span>Workflow</span><span id="trace-total"></span></div><ol>${
+    NODES.map(([id, label]) => `<li class="step" data-node="${id}"><div class="n">${label}</div><div class="d">waiting</div></li>`).join("")
+  }</ol></div>`;
+}
+
+async function ask(question) {
+  q.value = question; q.dispatchEvent(new Event("input"));
+  send.disabled = true; $$(".starters button").forEach((b) => (b.disabled = true));
+  out.innerHTML = `<div class="qline">${esc(question)}</div>${traceHtml()}<div id="answer-slot"></div>`;
+  const started = performance.now();
+  try {
+    const res = await fetch("/ask/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const ev = /^event: (.+)$/m.exec(frame)?.[1]; const data = /^data: (.+)$/m.exec(frame)?.[1];
+        if (ev && data) onEvent(ev, JSON.parse(data), started);
+      }
+    }
+  } catch (err) {
+    $("#answer-slot").innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  } finally {
+    send.disabled = false; $$(".starters button").forEach((b) => (b.disabled = false));
+  }
+}
+
+function onEvent(type, data, started) {
+  if (type === "node") {
+    const li = $(`.step[data-node="${data.node}"]`);
+    $$(".step.run").forEach((s) => s.classList.replace("run", "done"));
+    if (data.node === "no_context") { $$(".step").forEach((s) => { if (!s.classList.contains("done")) s.classList.add("skip"); }); return; }
+    if (li) { li.classList.add("done"); const spec = NODES.find((n) => n[0] === data.node); li.querySelector(".d").innerHTML = spec[2](data.detail); }
+    const next = li?.nextElementSibling; if (next && !next.classList.contains("done")) { next.classList.add("run"); next.querySelector(".d").textContent = "running…"; }
+    $("#trace-total").textContent = `${data.elapsed_ms} ms`;
+    if (data.node === "generate" && data.detail.attempt > 1) { const v = $(`.step[data-node="ground_check"] .d`); v.innerHTML = "revising unsupported citations…"; }
+  } else if (type === "answer") {
+    lastAnswer = data;
+    $$(".step.run").forEach((s) => s.classList.replace("run", "done"));
+    $("#trace-total").textContent = `${data.trace.total_ms} ms total`;
+    renderAnswer(data);
+  } else if (type === "error") {
+    $("#answer-slot").innerHTML = `<p class="error">${esc(data.detail)}</p>`;
+  }
+}
+
+function renderAnswer(a) {
+  const bad = new Set(a.unsupported_markers);
+  const abstained = !a.citations.length;
+  const cite = (n) => `<a class="cite ${bad.has(+n) ? "bad" : ""}" data-n="${n}" href="#src-${n}" title="Source ${n}">${n}</a>`;
+  const paras = a.answer.split(/\n\s*\n/).map((p) =>
+    `<p>${esc(p)
+      .replace(/\s*\[(\d{1,2})\]\s*([.;,])/g, (_, n, punct) => `${cite(n)}${punct}`)   // "text [1]." -> "text¹."
+      .replace(/\s*\[(\d{1,2})\]/g, (_, n) => cite(n))}</p>`).join("");
+  const verdict = abstained
+    ? `<span class="chip">no citations · the documents don't answer this</span>`
+    : a.grounded
+      ? `<span class="chip ok">✓ grounded · all ${a.citations.length} citations supported</span>`
+      : `<span class="chip warn">⚠ ${bad.size} unsupported citation${bad.size === 1 ? "" : "s"}: ${[...bad].map((n) => `[${n}]`).join(" ")}</span>`;
+  const retry = a.trace.attempts > 1 ? `<span class="chip">revised once</span>` : "";
+  const sources = a.citations.length ? `<div class="sources"><h3>Sources</h3>${a.citations.map((c) => `
+    <div class="src ${c.supported ? "" : "bad"}" id="src-${c.marker}" data-n="${c.marker}">
+      <div class="n">[${c.marker}]</div>
+      <div>
+        <div class="t">${esc(c.document_title)}</div>
+        <div class="w"><span>${esc(c.section || "—")}${c.page ? ` · p. ${c.page}` : ""}</span><span class="sup">${c.supported ? `supported · ${Math.round(c.support_score * 100)}%` : `not supported by this passage · ${Math.round(c.support_score * 100)}%`}</span></div>
+        <blockquote>${esc(c.quote)}</blockquote>
+        <button type="button" class="open" data-open="${esc(c.document_id)}" data-chunk="${esc(c.chunk_id)}" data-hl="${c.highlight ? c.highlight.join(",") : ""}">Open in document</button>
+      </div>
+    </div>`).join("")}</div>` : "";
+  $("#answer-slot").innerHTML = `<div class="answer ${abstained ? "abstain" : ""}">${paras}</div><div class="verdict">${verdict}${retry}<span class="chip tnum">${a.trace.candidates ?? 0} candidates → ${a.trace.context_chunks ?? 0} passages</span><button type="button" class="chip" id="copy">copy answer</button></div>${sources}`;
+  $$(".answer .cite").forEach((c) => {
+    const n = c.dataset.n;
+    c.addEventListener("mouseenter", () => $(`#src-${n}`)?.classList.add("on"));
+    c.addEventListener("mouseleave", () => $(`#src-${n}`)?.classList.remove("on"));
+    c.addEventListener("click", (e) => { e.preventDefault(); const s = $(`#src-${n}`); s?.scrollIntoView({ behavior: "smooth", block: "center" }); s?.classList.add("on"); setTimeout(() => s?.classList.remove("on"), 1400); });
+  });
+  $$(".src").forEach((s) => {
+    const n = s.dataset.n;
+    s.addEventListener("mouseenter", () => $$(`.cite[data-n="${n}"]`).forEach((c) => c.classList.add("on")));
+    s.addEventListener("mouseleave", () => $$(`.cite[data-n="${n}"]`).forEach((c) => c.classList.remove("on")));
+  });
+  $$("[data-open]", $("#answer-slot")).forEach((b) => b.addEventListener("click", () => openDoc(b.dataset.open, b.dataset.chunk, b.dataset.hl)));
+  $("#copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(a.answer); toast("Copied"); } catch {} });
+}
+
+// ---- document viewer -------------------------------------------------------------------
+async function openDoc(id, chunkId, hl) {
+  const r = await fetch(`/documents/${encodeURIComponent(id)}`);
+  if (!r.ok) return toast("Document not found");
+  const d = await r.json();
+  $("#v-title").textContent = d.title;
+  $("#v-sub").textContent = `${fmtType(d.doc_type)} · ${d.chunks.length} passages · ${d.source}`;
+  let html = ""; let lastSec = null;
+  for (const ch of d.chunks) {
+    if (ch.section !== lastSec) { html += `<div class="sec">${esc(ch.section || "Preamble")}${ch.page ? ` · p. ${ch.page}` : ""}</div>`; lastSec = ch.section; }
+    // Chunks begin with their heading line; the section label already shows it.
+    let body = ch.text, offset = 0;
+    const firstLine = body.split("\n", 1)[0].trim();
+    if (ch.section && firstLine === ch.section.trim()) { offset = body.indexOf("\n") + 1; body = body.slice(offset).replace(/^\s+/, (m) => { offset += m.length; return ""; }); }
+    let text = esc(body);
+    if (ch.id === chunkId && hl) {
+      let [s, e] = hl.split(",").map(Number); s = Math.max(0, s - offset); e = Math.max(s, e - offset);
+      text = esc(body.slice(0, s)) + "<mark>" + esc(body.slice(s, e)) + "</mark>" + esc(body.slice(e));
+    }
+    html += `<div class="chunk ${ch.id === chunkId ? "hit" : ""}" id="ch-${esc(ch.id)}">${text}</div>`;
+  }
+  $("#v-body").innerHTML = html;
+  $("#viewer").classList.add("open");
+  const body = $("#v-body");
+  const target = chunkId ? document.getElementById(`ch-${chunkId}`) : null;
+  const scrollToTarget = () => {
+    if (!target) { body.scrollTop = 0; return; }
+    body.scrollTop = Math.max(0, target.offsetTop - body.clientHeight / 2 + target.offsetHeight / 2);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(scrollToTarget));
+}
+function closeViewer() { $("#viewer").classList.remove("open"); }
+$("#v-close").addEventListener("click", closeViewer);
+$("#viewer").addEventListener("click", (e) => { if (e.target === $("#viewer")) closeViewer(); });
+
+// ---- upload --------------------------------------------------------------------------------
+const up = $("#upload");
+["dragenter", "dragover"].forEach((ev) => up.addEventListener(ev, (e) => { e.preventDefault(); up.classList.add("drag"); }));
+["dragleave", "drop"].forEach((ev) => up.addEventListener(ev, (e) => { e.preventDefault(); up.classList.remove("drag"); }));
+up.addEventListener("drop", (e) => { const f = e.dataTransfer.files?.[0]; if (f) { up.querySelector("input[type=file]").files = e.dataTransfer.files; up.requestSubmit(); } });
+up.addEventListener("submit", async (e) => {
+  e.preventDefault(); const fd = new FormData(up); $("#upload-msg").textContent = "indexing…";
   try {
     const r = await fetch("/documents", { method: "POST", body: fd });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-    const j = await r.json(); $("#upload-status").textContent = `indexed ${j.chunks} passages`; e.target.reset(); loadDocs(); loadMeta();
-  } catch (err) { $("#upload-status").textContent = err.message; }
+    const j = await r.json(); $("#upload-msg").textContent = `Indexed ${j.document.title}: ${j.chunks} passages`; up.reset(); loadDocs(); loadStatus();
+  } catch (err) { $("#upload-msg").innerHTML = `<span class="error">${esc(err.message)}</span>`; }
 });
-loadMeta(); loadDocs();
+
+// ---- evals ----------------------------------------------------------------------------------
+const METRIC_LABEL = { faithfulness: "Faithfulness", answer_relevance: "Answer relevance", fact_correctness: "Fact correctness", retrieval_hit_rate: "Retrieval hit rate", section_hit_rate: "Section hit rate", citation_precision: "Citation precision", grounded_rate: "Grounded rate", abstention_rate: "Abstention rate" };
+async function loadEvals() {
+  const el = $("#evals");
+  const r = await fetch("/evals/latest");
+  if (r.status === 404) { el.innerHTML = `<h2>Evaluation</h2><p class="sub">The release gate: 150 gold questions, scored on faithfulness, relevance, fact correctness, retrieval and citations.</p><div class="none">No report yet. Run <code>contractlens eval --ingest data/corpus</code> and refresh.</div>`; return; }
+  const e = await r.json();
+  const hist = await (await fetch("/evals/history")).json().catch(() => []);
+  const keys = Object.keys(METRIC_LABEL).filter((k) => k in e.aggregates);
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div><h2>Evaluation</h2><div class="sub">Run <span class="mono">${esc(e.run_id)}</span> · profile <b>${esc(e.profile)}</b> · judge ${esc(e.judge)} · ${e.questions} questions in ${e.duration_s}s</div></div>
+      <span class="gate ${e.passed ? "pass" : "fail"}">${e.passed ? "✓ Release gate passed" : "✕ Release gate failed"}</span>
+    </div>
+    <div class="metrics">${keys.map((k) => {
+      const v = e.aggregates[k], g = e.thresholds[k]; const fail = g !== undefined && v < g;
+      return `<div class="metric ${fail ? "fail" : ""}"><div class="l">${METRIC_LABEL[k]}</div><div class="v tnum">${v.toFixed(3)}${g !== undefined ? `<span class="g">gate ≥ ${g}</span>` : ""}</div><div class="bar"><i style="width:${Math.round(v * 100)}%"></i>${g !== undefined ? `<b style="left:${Math.round(g * 100)}%"></b>` : ""}</div></div>`;
+    }).join("")}</div>
+    ${e.failures.length ? `<p class="error" style="margin-top:12px">${e.failures.map(esc).join(" · ")}</p>` : ""}
+    ${hist.length > 1 ? `<div style="margin-top:18px"><h3>Faithfulness across the last ${hist.length} runs</h3><div class="spark">${hist.map((h) => `<i class="${h.passed ? "" : "fail"}" style="height:${Math.max(6, Math.round(h.aggregates.faithfulness * 100))}%" title="${esc(h.run_id)} · ${h.aggregates.faithfulness}"></i>`).join("")}</div></div>` : ""}
+    <div class="sect">
+      <div><h3>By question type</h3>${groupTable(e.by_category)}</div>
+      <div><h3>By document</h3>${groupTable(e.by_document, true)}</div>
+    </div>
+    <div style="margin-top:26px"><h3>Questions needing attention (${e.misses.length})</h3>
+      ${e.misses.length ? e.misses.map((m) => `<div class="miss"><div class="q">${esc(m.id)} · ${esc(m.question)}</div><div class="m">facts ${m.fact_correctness} · faithfulness ${m.faithfulness} · relevance ${m.answer_relevance} · retrieval ${m.retrieval_hit ? "hit" : "miss"}</div><div class="a">${esc((m.answer || "").slice(0, 220))}${(m.answer || "").length > 220 ? "…" : ""}</div></div>`).join("") : `<div class="none">Every question scored full marks.</div>`}
+    </div>`;
+}
+function groupTable(groups, short = false) {
+  return `<table><thead><tr><th>${short ? "Document" : "Type"}</th><th class="num">n</th><th class="num">Faith.</th><th class="num">Relev.</th><th class="num">Facts</th><th class="num">Hit</th></tr></thead><tbody>${
+    Object.entries(groups).map(([k, v]) => `<tr><td>${esc(short ? shortId(k) : k)}</td><td class="num">${v.n}</td><td class="num">${v.faithfulness.toFixed(2)}</td><td class="num">${v.answer_relevance.toFixed(2)}</td><td class="num">${v.fact_correctness.toFixed(2)}</td><td class="num">${v.retrieval_hit_rate.toFixed(2)}</td></tr>`).join("")
+  }</tbody></table>`;
+}
+
+$("#side-toggle").addEventListener("click", () => {
+  const side = $(".side"); const collapsed = side.classList.toggle("collapsed");
+  $("#side-toggle").textContent = collapsed ? "▴" : "▾"; $("#side-toggle").setAttribute("aria-expanded", String(!collapsed));
+});
+// Collapse the panel by default on small screens so the answer has room.
+if (matchMedia("(max-width: 1000px)").matches) $("#side-toggle").click();
+
+// ---- misc ----------------------------------------------------------------------------------
+let toastTimer;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1600); }
+
+loadStatus(); loadDocs();
 </script>
 </body>
 </html>

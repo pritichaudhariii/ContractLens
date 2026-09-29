@@ -52,6 +52,10 @@ class Citation(BaseModel):
     page: int | None = None
     quote: str = Field(description="A short supporting excerpt from the chunk")
     supported: bool = Field(default=True, description="Whether the grounding check found the citation supported")
+    support_score: float = Field(default=0.0, description="Lexical support of the best claim by this passage, 0..1")
+    highlight: tuple[int, int] | None = Field(
+        default=None, description="Character span of the supporting sentence within the chunk text"
+    )
 
 
 class Answer(BaseModel):

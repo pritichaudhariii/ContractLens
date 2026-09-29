@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from contractlens.api.app import create_app
@@ -79,3 +81,35 @@ def test_api_end_to_end(corpus_container):
 
         bad = client.post("/ask", json={"question": "hi"}, headers=headers)
         assert bad.status_code == 422
+
+
+def test_streaming_ask_emits_nodes_then_answer(corpus_container):
+    app = create_app(offline_settings(), container=corpus_container)
+    with TestClient(app) as client:
+        with client.stream(
+            "POST", "/ask/stream", json={"question": "What is the base rent under the office lease?"}
+        ) as res:
+            assert res.status_code == 200
+            assert res.headers["content-type"].startswith("text/event-stream")
+            body = "".join(res.iter_text())
+    events = [f for f in body.split("\n\n") if f.strip()]
+    kinds = [f.split("\n")[0].removeprefix("event: ") for f in events]
+    assert kinds[:2] == ["node", "node"] and kinds[-1] == "answer"
+    nodes = [json.loads(f.split("\ndata: ", 1)[1])["node"] for f in events if f.startswith("event: node")]
+    assert nodes[:3] == ["analyze_query", "retrieve", "process_context"]
+    answer = json.loads(events[-1].split("\ndata: ", 1)[1])
+    assert "38.50" in answer["answer"] and answer["passages"]
+    assert all("highlight" in c and "support_score" in c for c in answer["citations"])
+
+
+def test_document_detail_and_stats(corpus_container):
+    app = create_app(offline_settings(), container=corpus_container)
+    with TestClient(app) as client:
+        detail = client.get("/documents/office-lease-agreement-riverbend-northwind").json()
+        assert detail["chunks"] and detail["chunks"][0]["ordinal"] == 0
+        assert [c["ordinal"] for c in detail["chunks"]] == sorted(c["ordinal"] for c in detail["chunks"])
+        assert client.get("/documents/nope").status_code == 404
+        stats = client.get("/stats").json()
+        assert stats["documents"] == 10 and stats["chunks"] > 100 and stats["by_type"]["contract"] == 7
+        assert client.get("/evals/latest").status_code in (200, 404)
+        assert "x-request-id" in client.get("/stats").headers

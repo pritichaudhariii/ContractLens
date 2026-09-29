@@ -130,6 +130,15 @@ class PgVectorStore(DocumentStore):
         by_id = {r["id"]: self._chunk(r) for r in rows}
         return [by_id[c] for c in chunk_ids if c in by_id]
 
+    def document_chunks(self, document_id: str) -> list[Chunk]:
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT c.*, d.title AS document_title, d.doc_type FROM chunks c JOIN documents d ON d.id = c.document_id "
+                "WHERE c.document_id = %s ORDER BY c.ordinal",
+                (document_id,),
+            ).fetchall()
+        return [self._chunk(r) for r in rows]
+
     def vector_search(
         self,
         query_embedding: list[float],

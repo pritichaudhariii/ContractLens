@@ -122,6 +122,9 @@ class InMemoryStore(DocumentStore):
     def get_chunks(self, chunk_ids: list[str]) -> list[Chunk]:
         return [self.chunks[c] for c in chunk_ids if c in self.chunks]
 
+    def document_chunks(self, document_id: str) -> list[Chunk]:
+        return sorted((c for c in self.chunks.values() if c.document_id == document_id), key=lambda c: c.ordinal)
+
     def vector_search(
         self,
         query_embedding: list[float],

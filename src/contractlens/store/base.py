@@ -45,5 +45,9 @@ class DocumentStore(ABC):
     @abstractmethod
     def get_chunks(self, chunk_ids: list[str]) -> list[Chunk]: ...
 
+    @abstractmethod
+    def document_chunks(self, document_id: str) -> list[Chunk]:
+        """All chunks of one document in reading order."""
+
     def close(self) -> None:  # pragma: no cover - default no-op
         return None
