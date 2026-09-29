@@ -1,0 +1,22 @@
+# Release gate for the evaluation harness. `contractlens eval` fails (exit 1) when any aggregate
+# metric falls below its threshold for the active profile.
+#
+# production: a real model answers (ANTHROPIC_API_KEY set) and an LLM judge scores it.
+# offline:    the deterministic fake model + hashing embeddings + heuristic judge, used in CI
+#             without keys. Lower relevance bars because the fake model is extractive; retrieval,
+#             grounding and citation bars stay high because those parts are the same code.
+profiles:
+  production:
+    faithfulness: 0.90
+    answer_relevance: 0.85
+    fact_correctness: 0.85
+    retrieval_hit_rate: 0.95
+    citation_precision: 0.90
+    grounded_rate: 0.90
+  offline:
+    faithfulness: 0.90
+    answer_relevance: 0.55
+    fact_correctness: 0.70
+    retrieval_hit_rate: 0.95
+    citation_precision: 0.90
+    grounded_rate: 0.90

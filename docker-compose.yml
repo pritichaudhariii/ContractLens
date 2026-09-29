@@ -1,0 +1,63 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: contractlens
+      POSTGRES_PASSWORD: contractlens
+      POSTGRES_DB: contractlens
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contractlens -d contractlens"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://contractlens:contractlens@db:5432/contractlens
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      API_KEY: ${API_KEY:-}
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-shot: index the sample corpus. `docker compose run --rm ingest`
+  ingest:
+    build: .
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://contractlens:contractlens@db:5432/contractlens
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+    command: ["contractlens", "ingest", "data/corpus"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-shot: run the evaluation harness against the running stack. `docker compose run --rm eval`
+  eval:
+    build: .
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://contractlens:contractlens@db:5432/contractlens
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+    volumes:
+      - ./reports:/app/reports
+    command: ["contractlens", "eval"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

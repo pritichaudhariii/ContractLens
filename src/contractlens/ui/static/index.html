@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ContractLens</title>
+<style>
+  :root {
+    --bg: #f5f6f4; --panel: #ffffff; --ink: #1c2229; --muted: #5f6b76; --faint: #98a3ad;
+    --rule: #d9dfe4; --accent: #2b5d9b; --accent-soft: #e6eef8; --ok: #1f7a4d; --warn: #b26a0b; --bad: #b2372f;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 28px 10px; }
+  header h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+  header .meta { font-size: 13px; color: var(--muted); }
+  header code { font-family: var(--mono); font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 1.4fr); gap: 20px; padding: 0 28px 28px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; }
+  form { display: flex; gap: 8px; padding: 14px; border-bottom: 1px solid var(--rule); }
+  input[type=text] { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button { font: inherit; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .starters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+  .starters button { font-size: 13px; padding: 5px 10px; background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  #answer { padding: 18px 20px; min-height: 160px; }
+  #answer .q { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  #answer .text { font-size: 16px; max-width: 70ch; }
+  #answer sup { color: var(--accent); font-weight: 600; cursor: pointer; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); margin-right: 6px; }
+  .badge.ok { color: var(--ok); border-color: #b9dcc9; background: #eaf6ef; }
+  .badge.warn { color: var(--warn); border-color: #ecd3ab; background: #fbf3e4; }
+  .trace { margin-top: 10px; font-size: 12px; color: var(--faint); font-family: var(--mono); }
+  .citations { border-top: 1px solid var(--rule); padding: 14px 20px; }
+  .citations h2, .docs h2 { font-size: 13px; text-transform: none; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .cite { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--rule); font-size: 14px; }
+  .cite:first-of-type { border-top: 0; }
+  .cite .n { font-family: var(--mono); color: var(--accent); font-weight: 600; }
+  .cite .where { color: var(--muted); font-size: 13px; }
+  .cite blockquote { margin: 4px 0 0; padding-left: 10px; border-left: 3px solid var(--rule); color: var(--ink); }
+  .cite.unsupported .n { color: var(--bad); }
+  .docs { padding: 14px; }
+  .docs ul { list-style: none; margin: 0; padding: 0; }
+  .docs li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--rule); font-size: 14px; }
+  .docs li:first-child { border-top: 0; }
+  .docs .type { font-size: 12px; color: var(--muted); }
+  .docs .count { font-family: var(--mono); font-size: 12px; color: var(--faint); white-space: nowrap; }
+  .upload { border-top: 1px solid var(--rule); padding: 12px 14px; font-size: 13px; color: var(--muted); }
+  .upload form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .upload label { flex-basis: 100%; }
+  .upload input[type=file] { font-size: 13px; max-width: 100%; }
+  .upload select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; }
+  .upload button { padding: 6px 12px; font-size: 13px; }
+  .empty { color: var(--faint); }
+  .error { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ContractLens</h1>
+  <div class="meta" id="meta">connecting…</div>
+</header>
+<main>
+  <section class="panel">
+    <form id="ask">
+      <input id="q" type="text" placeholder="Ask about the indexed contracts and filings" autocomplete="off" />
+      <button id="send" type="submit">Ask</button>
+    </form>
+    <div class="starters" id="starters"></div>
+    <div id="answer"><div class="empty">Answers cite the passages they come from. Click a citation number to jump to the quote.</div></div>
+    <div class="citations" id="citations" hidden></div>
+  </section>
+  <aside class="panel">
+    <div class="docs">
+      <h2>Indexed documents</h2>
+      <ul id="docs"><li class="empty">Loading…</li></ul>
+    </div>
+    <div class="upload">
+      <form id="upload">
+        <label>Add a document (PDF, .md, .txt)<br />
+          <input type="file" name="file" accept=".pdf,.md,.txt" required />
+        </label>
+        <select name="doc_type">
+          <option value="contract">contract</option>
+          <option value="regulatory_filing">regulatory filing</option>
+          <option value="policy">policy</option>
+          <option value="other">other</option>
+        </select>
+        <button class="secondary" type="submit">Upload</button>
+        <span id="upload-status"></span>
+      </form>
+    </div>
+  </aside>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const STARTERS = [
+  "What is the termination notice period in the master services agreement?",
+  "What uptime does the SaaS subscription agreement commit to?",
+  "How much revenue did Northwind report for fiscal 2025?",
+  "What is the leverage covenant in the credit agreement?",
+  "How long does the NDA's confidentiality obligation survive?",
+  "What was the purchase price for Bluewater Robotics?",
+];
+const headers = () => ({ "Content-Type": "application/json" });
+
+async function loadMeta() {
+  try {
+    const r = await fetch("/health"); const h = await r.json();
+    $("#meta").innerHTML = `<code>${h.components.store}</code> · <code>${h.components.embedding_provider}</code> embeddings · <code>${h.components.llm}</code> · ${h.documents} documents, ${h.chunks} passages`;
+  } catch { $("#meta").textContent = "API unreachable"; }
+}
+async function loadDocs() {
+  const r = await fetch("/documents"); const docs = await r.json();
+  const ul = $("#docs"); ul.innerHTML = "";
+  if (!docs.length) { ul.innerHTML = '<li class="empty">Nothing indexed yet. Upload a file or run <code>contractlens ingest data/corpus</code>.</li>'; return; }
+  for (const d of docs) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span><div>${esc(d.title)}</div><div class="type">${d.doc_type.replace("_", " ")}</div></span><span class="count">${d.chunk_count} passages</span>`;
+    ul.appendChild(li);
+  }
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function renderAnswer(q, a) {
+  const text = esc(a.answer).replace(/\[(\d{1,2})\]/g, (_, n) => `<sup data-n="${n}">[${n}]</sup>`);
+  const badge = a.grounded ? '<span class="badge ok">grounded</span>' : `<span class="badge warn">unsupported citations: ${a.unsupported_markers.join(", ") || "none"}</span>`;
+  const t = a.trace;
+  $("#answer").innerHTML = `<div class="q">${esc(q)}</div><div class="text">${text}</div><div style="margin-top:12px">${badge}<span class="badge">${a.citations.length} citations</span></div>
+    <div class="trace">retrieve ${t.retrieve_ms} ms · ${t.candidates} candidates → ${t.context_chunks ?? 0} passages · generate ${t.generate_ms ?? 0} ms (${t.llm ?? ""}) · total ${t.total_ms} ms</div>`;
+  const c = $("#citations"); c.hidden = !a.citations.length;
+  c.innerHTML = "<h2>Sources</h2>" + a.citations.map((x) => `
+    <div class="cite ${x.supported ? "" : "unsupported"}" id="cite-${x.marker}">
+      <div class="n">[${x.marker}]</div>
+      <div><div>${esc(x.document_title)}</div><div class="where">${esc(x.section || "")}${x.page ? ` · p. ${x.page}` : ""}${x.supported ? "" : " · not supported by this passage"}</div><blockquote>${esc(x.quote)}</blockquote></div>
+    </div>`).join("");
+  document.querySelectorAll("#answer sup").forEach((s) => s.addEventListener("click", () => document.getElementById("cite-" + s.dataset.n)?.scrollIntoView({ behavior: "smooth", block: "center" })));
+}
+async function ask(q) {
+  $("#q").value = q; $("#send").disabled = true;
+  $("#answer").innerHTML = `<div class="q">${esc(q)}</div><div class="empty">Retrieving and drafting…</div>`; $("#citations").hidden = true;
+  try {
+    const r = await fetch("/ask", { method: "POST", headers: headers(), body: JSON.stringify({ question: q }) });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    renderAnswer(q, await r.json());
+  } catch (e) { $("#answer").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  finally { $("#send").disabled = false; }
+}
+$("#ask").addEventListener("submit", (e) => { e.preventDefault(); const q = $("#q").value.trim(); if (q) ask(q); });
+for (const s of STARTERS) { const b = document.createElement("button"); b.type = "button"; b.textContent = s; b.addEventListener("click", () => ask(s)); $("#starters").appendChild(b); }
+$("#upload").addEventListener("submit", async (e) => {
+  e.preventDefault(); const fd = new FormData(e.target); $("#upload-status").textContent = "uploading…";
+  try {
+    const r = await fetch("/documents", { method: "POST", body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const j = await r.json(); $("#upload-status").textContent = `indexed ${j.chunks} passages`; e.target.reset(); loadDocs(); loadMeta();
+  } catch (err) { $("#upload-status").textContent = err.message; }
+});
+loadMeta(); loadDocs();
+</script>
+</body>
+</html>

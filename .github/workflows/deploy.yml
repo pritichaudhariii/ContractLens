@@ -1,0 +1,74 @@
+name: Deploy to AWS ECS
+
+# Builds the image, pushes it to ECR, runs the eval harness with the production profile
+# (real model + LLM judge) as the release gate, then rolls the ECS service forward.
+# Requires repository secrets: AWS_ROLE_ARN (OIDC), ANTHROPIC_API_KEY, VOYAGE_API_KEY (optional),
+# and variables: AWS_REGION, ECS_CLUSTER, ECS_SERVICE, ECR_REPOSITORY.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  release-gate:
+    name: Eval harness (production profile)
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: contractlens eval --ingest data/corpus --embedded-postgres
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report-production
+          path: reports/latest.*
+
+  deploy:
+    needs: release-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:${{ github.sha }} -t $REGISTRY/$REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:${{ github.sha }}
+          docker push $REGISTRY/$REPOSITORY:latest
+      - name: Render task definition with the new image
+        id: taskdef
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ vars.ECS_SERVICE }} \
+            --query taskDefinition > taskdef.json
+          echo "image=${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+      - uses: aws-actions/amazon-ecs-render-task-definition@v1
+        id: render
+        with:
+          task-definition: taskdef.json
+          container-name: api
+          image: ${{ steps.taskdef.outputs.image }}
+      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          service: ${{ vars.ECS_SERVICE }}
+          wait-for-service-stability: true
