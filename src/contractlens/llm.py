@@ -6,6 +6,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 
+from contractlens.foundry import FoundryClient
 from contractlens.store.memory import tokenize
 
 ABBREVIATIONS = re.compile(
@@ -39,6 +40,29 @@ class AnthropicLLM(LLM):
             messages=[{"role": "user", "content": user}],
         )
         return "".join(block.text for block in response.content if getattr(block, "type", "") == "text").strip()
+
+
+class FoundryLLM(LLM):
+    """Chat completions on an Azure AI Foundry deployment (temperature 0 for reproducible answers)."""
+
+    name = "foundry"
+
+    def __init__(self, client: FoundryClient, deployment: str, *, temperature: float = 0.0) -> None:
+        self.client = client
+        self.model = deployment
+        self.temperature = temperature
+
+    def complete(self, system: str, user: str, *, max_tokens: int = 1024) -> str:
+        out = self.client.post(
+            self.model,
+            "chat/completions",
+            {
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "temperature": self.temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        return (out["choices"][0]["message"].get("content") or "").strip()
 
 
 class FakeLLM(LLM):
@@ -130,10 +154,22 @@ class FakeLLM(LLM):
         return " ".join(f"{sentence.rstrip('.;')} [{marker}]." for marker, sentence in picked)
 
 
-def build_llm(provider: str, *, api_key: str | None, model: str) -> LLM:
+def build_llm(
+    provider: str,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+    foundry: FoundryClient | None = None,
+) -> LLM:
+    if provider == "foundry":
+        if foundry is None or not model:
+            raise RuntimeError("Azure AI Foundry needs AZURE_FOUNDRY_ENDPOINT, AZURE_FOUNDRY_API_KEY and a deployment name")
+        return FoundryLLM(foundry, deployment=model)
     if provider == "anthropic":
         if not api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is required for the anthropic LLM provider")
+        if not model:
+            raise RuntimeError("ANTHROPIC_MODEL is required for the anthropic LLM provider")
         return AnthropicLLM(api_key, model=model)
     if provider == "fake":
         return FakeLLM()

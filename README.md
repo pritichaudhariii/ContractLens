@@ -2,7 +2,7 @@
 
 Question answering over contracts and regulatory filings, where every sentence of the answer cites the passage it came from. Ask "what is the liability cap in the Helix agreement?" and get the clause, the section it lives in, and a grounding check that flags any citation the passage doesn't actually support. Before every release, an evaluation harness runs 150 gold questions through the system and blocks the deploy if faithfulness or relevance regress.
 
-Built with Python, LangGraph, FastAPI, PostgreSQL + pgvector, Docker and AWS ECS.
+Built with Python, LangGraph, FastAPI, Azure AI Foundry, PostgreSQL + pgvector, Docker and AWS ECS.
 
 ![ContractLens: a streamed answer with the workflow trace, one citation flagged as unsupported, and the sources behind it](docs/screenshot.png)
 
@@ -21,7 +21,8 @@ Built with Python, LangGraph, FastAPI, PostgreSQL + pgvector, Docker and AWS ECS
 - **Hybrid retrieval on pgvector**: vector search (HNSW) plus full-text search (GIN), fused with reciprocal rank fusion. Questions that name a document ("the NDA", "the 10-K") are scoped to it before searching.
 - **Section-aware ingestion**: PDFs, Markdown and text are chunked at clause boundaries so each citation carries a document, section, page and the character span of its supporting sentence. Click a citation and the document opens there.
 - **Eval harness with a release gate**: 150 questions across 10 documents, scored on faithfulness, relevance, fact correctness, retrieval hit rate and citation precision against thresholds in `evals/thresholds.yaml`. Exit code 1 fails the build.
-- **Runs without keys**: deterministic embeddings and an extractive stand-in model let the whole stack, harness included, run in CI. Add an LLM API key for real answers and an LLM judge.
+- **Azure AI Foundry models**: answers, embeddings and the eval judge run on Foundry deployments (by default `gpt-4o-mini` for answers, `text-embedding-3-small` for embeddings, and an optional stronger judge such as `gpt-4o`). Both Foundry endpoint styles are supported: Azure OpenAI deployments, and the Foundry model inference API for any model in the project (Llama, Mistral, Phi…). Rate limits and transient errors are retried with backoff, honouring `Retry-After`.
+- **Runs without keys**: deterministic embeddings and an extractive stand-in model let the whole stack, harness included, run in CI. Point it at Azure AI Foundry for real answers and an LLM judge.
 - **Deployable**: Dockerfile, Compose stack with pgvector, Terraform for ECS Fargate + RDS + ALB, and GitHub Actions for CI and gated deploys. Structured request logs with request ids.
 
 ## How it works
@@ -71,10 +72,10 @@ Then try:
 ```bash
 contractlens ask "How long does the NDA's confidentiality obligation survive?"
 contractlens eval                  # the release gate
-pytest                             # 21 tests, including a real pgvector suite
+pytest                             # 28 tests, including a real pgvector suite
 ```
 
-For real answers, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. Without Docker, the API falls back to an in-memory store, and `contractlens eval --embedded-postgres` starts a throwaway pgvector on its own.
+For real answers, copy `.env.example` to `.env` and set `AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY` and your deployment names. When Foundry is configured it is used automatically for generation, embeddings and the judge. Changing embedding providers changes the vector size, so re-ingest afterwards. Without Docker, the API falls back to an in-memory store, and `contractlens eval --embedded-postgres` starts a throwaway pgvector on its own.
 
 ## API
 
@@ -91,7 +92,7 @@ Set `API_KEY` to require an `X-API-Key` header.
 
 ## Deploy
 
-`infra/terraform` provisions a VPC, ECS Fargate service behind an ALB, RDS PostgreSQL 16, ECR, Secrets Manager and autoscaling. `terraform apply` with a DB password and API key, then push an image. The deploy workflow runs the eval harness in the production profile as the gate, pushes the image to ECR and rolls the service forward.
+`infra/terraform` provisions a VPC, ECS Fargate service behind an ALB, RDS PostgreSQL 16, ECR, Secrets Manager and autoscaling. `terraform apply` with a DB password and your Azure AI Foundry endpoint and key (stored in Secrets Manager and injected into the task), then push an image. The deploy workflow runs the eval harness in the production profile against Foundry as the gate, pushes the image to ECR and rolls the service forward.
 
 ## Layout
 

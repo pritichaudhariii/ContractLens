@@ -35,13 +35,29 @@ class Settings(BaseSettings):
     store_backend: Literal["auto", "pgvector", "memory"] = "auto"
 
     # ---- Providers --------------------------------------------------------------
+    # Azure AI Foundry is the primary provider for generation, embeddings and the eval judge.
+    # Endpoint styles: "azure_openai" (https://<resource>.openai.azure.com, deployment names) or
+    # "inference" (https://<resource>.services.ai.azure.com/models, any deployed model).
+    azure_foundry_endpoint: str | None = None
+    azure_foundry_api_key: str | None = None
+    azure_foundry_api_style: Literal["azure_openai", "inference"] = "azure_openai"
+    azure_foundry_api_version: str = "2024-10-21"
+    azure_foundry_chat_deployment: str = "gpt-4o-mini"
+    azure_foundry_judge_deployment: str | None = Field(
+        default=None, description="Deployment for the eval judge; defaults to the chat deployment"
+    )
+    azure_foundry_embedding_deployment: str = "text-embedding-3-small"
+    azure_foundry_embedding_dimension: int = 1536
+    azure_foundry_timeout_s: float = 60.0
+
+    # Alternatives: Anthropic for generation, Voyage for embeddings and reranking.
     anthropic_api_key: str | None = None
-    anthropic_model: str = "claude-sonnet-5-5"
-    judge_model: str | None = Field(default=None, description="Model for eval judges; defaults to anthropic_model")
-    llm_provider: Literal["auto", "anthropic", "fake"] = "auto"
+    anthropic_model: str | None = None
+    judge_model: str | None = Field(default=None, description="Anthropic judge model; defaults to anthropic_model")
+    llm_provider: Literal["auto", "foundry", "anthropic", "fake"] = "auto"
 
     voyage_api_key: str | None = None
-    embedding_provider: Literal["auto", "voyage", "hashing"] = "auto"
+    embedding_provider: Literal["auto", "foundry", "voyage", "hashing"] = "auto"
     embedding_model: str = "voyage-law-2"
     reranker: Literal["auto", "voyage", "none"] = "auto"
     rerank_model: str = "rerank-2.5"
@@ -61,15 +77,23 @@ class Settings(BaseSettings):
 
     # ---- Derived ------------------------------------------------------------------------
     @property
+    def foundry_configured(self) -> bool:
+        return bool(self.azure_foundry_endpoint and self.azure_foundry_api_key)
+
+    @property
     def resolved_llm_provider(self) -> str:
         if self.llm_provider != "auto":
             return self.llm_provider
+        if self.foundry_configured:
+            return "foundry"
         return "anthropic" if self.anthropic_api_key else "fake"
 
     @property
     def resolved_embedding_provider(self) -> str:
         if self.embedding_provider != "auto":
             return self.embedding_provider
+        if self.foundry_configured:
+            return "foundry"
         return "voyage" if self.voyage_api_key else "hashing"
 
     @property
@@ -85,13 +109,30 @@ class Settings(BaseSettings):
         return "pgvector" if self.database_url else "memory"
 
     @property
+    def resolved_embedding_model(self) -> str:
+        if self.resolved_embedding_provider == "foundry":
+            return self.azure_foundry_embedding_deployment
+        return self.embedding_model
+
+    @property
     def embedding_dimension(self) -> int:
-        if self.resolved_embedding_provider == "hashing":
+        provider = self.resolved_embedding_provider
+        if provider == "hashing":
             return EMBEDDING_DIMENSIONS["hashing"]
+        if provider == "foundry":
+            return self.azure_foundry_embedding_dimension
         return EMBEDDING_DIMENSIONS.get(self.embedding_model, 1024)
 
     @property
-    def resolved_judge_model(self) -> str:
+    def resolved_llm_model(self) -> str | None:
+        if self.resolved_llm_provider == "foundry":
+            return self.azure_foundry_chat_deployment
+        return self.anthropic_model
+
+    @property
+    def resolved_judge_model(self) -> str | None:
+        if self.resolved_llm_provider == "foundry":
+            return self.azure_foundry_judge_deployment or self.azure_foundry_chat_deployment
         return self.judge_model or self.anthropic_model
 
 

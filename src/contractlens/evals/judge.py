@@ -97,6 +97,6 @@ def _clamp(x: float) -> float:
 def build_judge(kind: str, llm: LLM | None) -> Judge:
     if kind == "llm":
         if llm is None or llm.name == "fake":
-            raise RuntimeError("The LLM judge needs a real model; set ANTHROPIC_API_KEY or use --judge heuristic")
+            raise RuntimeError("The LLM judge needs a real model; configure Azure AI Foundry (or ANTHROPIC_API_KEY) or use --judge heuristic")
         return LLMJudge(llm)
     return HeuristicJudge()

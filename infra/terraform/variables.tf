@@ -44,9 +44,35 @@ variable "db_password" {
   sensitive = true
 }
 
-variable "anthropic_api_key" {
+variable "azure_foundry_endpoint" {
+  description = "Azure AI Foundry endpoint, e.g. https://<resource>.openai.azure.com"
+  type        = string
+}
+
+variable "azure_foundry_api_key" {
   type      = string
   sensitive = true
+}
+
+variable "azure_foundry_api_style" {
+  description = "azure_openai (deployment names) or inference (Foundry model inference API)"
+  type        = string
+  default     = "azure_openai"
+}
+
+variable "azure_foundry_chat_deployment" {
+  type    = string
+  default = "gpt-4o-mini"
+}
+
+variable "azure_foundry_embedding_deployment" {
+  type    = string
+  default = "text-embedding-3-small"
+}
+
+variable "azure_foundry_embedding_dimension" {
+  type    = number
+  default = 1536
 }
 
 variable "voyage_api_key" {
@@ -62,12 +88,4 @@ variable "api_key" {
   default     = ""
 }
 
-variable "anthropic_model" {
-  type    = string
-  default = "claude-sonnet-5-5"
-}
 
-variable "embedding_model" {
-  type    = string
-  default = "voyage-law-2"
-}

@@ -26,6 +26,8 @@ def offline_settings(**overrides) -> Settings:
         embedding_provider="hashing",
         reranker="none",
         store_backend="memory",
+        azure_foundry_endpoint=None,
+        azure_foundry_api_key=None,
         anthropic_api_key=None,
         voyage_api_key=None,
         database_url=None,

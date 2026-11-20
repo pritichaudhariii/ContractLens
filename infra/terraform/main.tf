@@ -3,7 +3,8 @@
 #
 #   cd infra/terraform
 #   terraform init
-#   terraform apply -var="anthropic_api_key=sk-ant-..." -var="db_password=..."
+#   terraform apply -var="azure_foundry_endpoint=https://<resource>.openai.azure.com" \
+#     -var="azure_foundry_api_key=..." -var="db_password=..."
 #
 # Then push an image to the ECR repository the output prints and run `terraform apply` again
 # (or let the GitHub Actions deploy workflow update the service).
@@ -203,10 +204,10 @@ resource "aws_secretsmanager_secret" "app" {
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id = aws_secretsmanager_secret.app.id
   secret_string = jsonencode({
-    DATABASE_URL      = "postgresql://contractlens:${var.db_password}@${aws_db_instance.postgres.address}:5432/contractlens"
-    ANTHROPIC_API_KEY = var.anthropic_api_key
-    VOYAGE_API_KEY    = var.voyage_api_key
-    API_KEY           = var.api_key
+    DATABASE_URL          = "postgresql://contractlens:${var.db_password}@${aws_db_instance.postgres.address}:5432/contractlens"
+    AZURE_FOUNDRY_API_KEY = var.azure_foundry_api_key
+    VOYAGE_API_KEY        = var.voyage_api_key
+    API_KEY               = var.api_key
   })
 }
 
@@ -304,11 +305,14 @@ resource "aws_ecs_task_definition" "app" {
       { name = "PORT", value = tostring(var.container_port) },
       { name = "ENVIRONMENT", value = "production" },
       { name = "LOG_LEVEL", value = "INFO" },
-      { name = "ANTHROPIC_MODEL", value = var.anthropic_model },
-      { name = "EMBEDDING_MODEL", value = var.embedding_model },
+      { name = "AZURE_FOUNDRY_ENDPOINT", value = var.azure_foundry_endpoint },
+      { name = "AZURE_FOUNDRY_API_STYLE", value = var.azure_foundry_api_style },
+      { name = "AZURE_FOUNDRY_CHAT_DEPLOYMENT", value = var.azure_foundry_chat_deployment },
+      { name = "AZURE_FOUNDRY_EMBEDDING_DEPLOYMENT", value = var.azure_foundry_embedding_deployment },
+      { name = "AZURE_FOUNDRY_EMBEDDING_DIMENSION", value = tostring(var.azure_foundry_embedding_dimension) },
     ]
     secrets = [
-      for key in ["DATABASE_URL", "ANTHROPIC_API_KEY", "VOYAGE_API_KEY", "API_KEY"] :
+      for key in ["DATABASE_URL", "AZURE_FOUNDRY_API_KEY", "VOYAGE_API_KEY", "API_KEY"] :
       { name = key, valueFrom = "${aws_secretsmanager_secret.app.arn}:${key}::" }
     ]
     logConfiguration = {

@@ -315,7 +315,7 @@ def run_from_args(args: argparse.Namespace) -> int:
         judge_kind = args.judge
         if judge_kind == "auto":
             judge_kind = "llm" if container.llm.name != "fake" else "heuristic"
-        judge = build_judge(judge_kind, container.llm)
+        judge = build_judge(judge_kind, container.judge_llm)
         profile = choose_profile(container)
         thresholds = load_thresholds(args.thresholds, profile)
 
